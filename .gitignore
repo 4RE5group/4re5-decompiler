@@ -1,0 +1,4 @@
+.vscode
+4re5-decompiler
+*.o
+*/*.o
