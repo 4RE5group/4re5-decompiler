@@ -15,3 +15,14 @@ _start:
     mov eax, 1
     xor ebx, ebx
     int 0x80
+
+    call test
+
+    ret
+
+test:
+    mov eax, 0x42
+    mov ax, 0x42
+    add ax, 0x01
+
+    ret

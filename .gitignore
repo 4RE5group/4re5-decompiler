@@ -2,3 +2,5 @@
 4re5-decompiler
 *.o
 */*.o
+a.out
+*/a.out

@@ -3,6 +3,28 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
+
+typedef struct {
+	uint8_t mod;
+	uint8_t reg;
+	uint8_t rm;
+}   modrm_t;
+
+typedef enum {
+	OP_NONE,
+	OP_SIMPLE,
+	OP_GROUP
+}   opcode_kind;
+
+typedef struct {
+	uint16_t opcode;
+	opcode_kind kind;
+	bool has_modrm;
+	const char *mnemonic;
+	const char *group[8];
+}   opcode_desc;
+
 
 typedef struct x86_instruction
 {
@@ -25,6 +47,6 @@ typedef struct x86_instruction
 
 
 /* functions */
-void x86_disasm(char *bytes, size_t size);
+void x86_disasm(uint8_t *bytes, size_t size);
 
 #endif
