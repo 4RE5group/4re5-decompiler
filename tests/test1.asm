@@ -6,6 +6,8 @@ section .data
 
 section .text
 _start:
+    call test
+
     mov eax, 4
     mov ebx, 1
     mov ecx, msg
@@ -16,13 +18,7 @@ _start:
     xor ebx, ebx
     int 0x80
 
-    call test
-
-    ret
-
 test:
-    mov eax, 0x42
     mov ax, 0x42
     add ax, 0x01
-
     ret

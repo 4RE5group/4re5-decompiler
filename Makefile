@@ -4,7 +4,8 @@ CFILES		=	main.c \
 				types/type_detector.c \
 				arch/x86/x86.c
 OFILES		= $(CFILES:.c=.o)
-#CFLAGS		= -Wall -Wextra -Werror -g3
+DFILES		= $(CFILES:.c=.d)
+CFLAGS		= -Wall -Wextra -Werror -g3 -MMD -MP
 
 all: $(NAME)
 
@@ -15,7 +16,7 @@ $(NAME): $(OFILES)
 	$(CC) $(CFLAGS) -c $^ -o $@
 
 clean:
-	rm -rf $(OFILES)
+	rm -rf $(OFILES) $(DFILES)
 
 fclean: clean
 	rm -rf $(NAME)
@@ -23,3 +24,4 @@ fclean: clean
 re: fclean all
 
 .PHONY: all, clean, fclean, re
+-include: $(DFILES)
