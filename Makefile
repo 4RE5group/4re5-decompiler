@@ -1,4 +1,4 @@
-NAME		= 4re5-decompiler
+NAME		= 4re5-decompiler-gui
 
 CORE_CFILES	= types/elf.c types/type_detector.c arch/x86/x86.c
 GUI_CFILES	= gui/app.c gui/model.c

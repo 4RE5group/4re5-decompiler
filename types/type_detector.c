@@ -128,6 +128,13 @@ int detect_type(int fd) {
   printf("ELF|%s|%s|%llx|%llx|%llx\n", is64 ? "64" : "32", swap ? "MSB" : "LSB",
          (unsigned long long)entry_point, (unsigned long long)entry,
          (unsigned long long)entry_size);
+  printf("ELF_HEADER|Class|ELF%s\n", is64 ? "64" : "32");
+  printf("ELF_HEADER|Data|%s endian\n", swap ? "Big" : "Little");
+  printf("ELF_HEADER|Machine|%s (0x%llx)\n", is64 ? "x86-64" : "i386",
+         (unsigned long long)entry);
+  printf("ELF_HEADER|Entry point|0x%llx\n", (unsigned long long)entry_point);
+  printf("ELF_HEADER|Section table|offset 0x%llx, %llu entries\n",
+         (unsigned long long)section_offset, (unsigned long long)section_count);
   for (uint64_t i = 0; i < section_count; i++) {
     unsigned char *sh = file + section_offset + i * section_size;
     uint64_t name_index = read32(sh, swap), address, offset, size, flags;

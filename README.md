@@ -34,6 +34,14 @@ the matching light palette. Text uses Lilex when installed, then falls back to
 a monospace system font. Toolbar actions use symbolic folder and save icons
 from the desktop icon theme.
 
+The assembly view highlights hexadecimal constants in green, resolves
+addresses that point into printable ELF data as inline string annotations, and
+shows ELF header fields in the same highlighted metadata style above the
+disassembly. The native decoder handles common 32-bit and 64-bit prefixes,
+REX-extended registers, grouped operations, branches, calls, `lea`, `push`,
+`endbr`, and syscall instructions; unsupported encodings remain explicit data
+records until their opcode metadata is added.
+
 ## Handled Executable Formats
 - ELF32 and ELF64 x86/x86-64
 
@@ -46,4 +54,4 @@ from the desktop icon theme.
 - `arch/x86/x86.c`: native x86 instruction decoder
 
 `main.c` is retained as a small command-line reference entry point, but it is
-not part of the default build. `make` creates only `4re5-decompiler-gui`.
+not part of the default build. `make` creates only `4re5-decompiler`.

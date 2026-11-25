@@ -139,6 +139,13 @@ static opcode_desc opcode_table[] = {
     {0x0089, OP_SIMPLE, true, "mov", {NULL}},
     {0x008A, OP_SIMPLE, true, "mov", {NULL}},
     {0x008B, OP_SIMPLE, true, "mov", {NULL}},
+    {0x008D, OP_SIMPLE, true, "lea", {NULL}},
+    {0x00C6, OP_SIMPLE, true, "mov", {NULL}},
+    {0x00C7, OP_SIMPLE, true, "mov", {NULL}},
+    {0x0068, OP_SIMPLE, false, "push", {NULL}},
+    {0x006A, OP_SIMPLE, false, "push", {NULL}},
+    {0x0069, OP_SIMPLE, true, "imul", {NULL}},
+    {0x006B, OP_SIMPLE, true, "imul", {NULL}},
 
     /* --- System IO --- */
     {0x00CD, OP_SIMPLE, false, "int", {NULL}},
@@ -196,6 +203,22 @@ static opcode_desc opcode_table[] = {
     {0x007D, OP_SIMPLE, false, "jge", {NULL}},
     {0x007E, OP_SIMPLE, false, "jle", {NULL}},
     {0x007F, OP_SIMPLE, false, "jg", {NULL}},
+    {0x0F80, OP_SIMPLE, false, "jo", {NULL}},
+    {0x0F81, OP_SIMPLE, false, "jno", {NULL}},
+    {0x0F82, OP_SIMPLE, false, "jb", {NULL}},
+    {0x0F83, OP_SIMPLE, false, "jnb", {NULL}},
+    {0x0F84, OP_SIMPLE, false, "je", {NULL}},
+    {0x0F85, OP_SIMPLE, false, "jne", {NULL}},
+    {0x0F86, OP_SIMPLE, false, "jbe", {NULL}},
+    {0x0F87, OP_SIMPLE, false, "ja", {NULL}},
+    {0x0F88, OP_SIMPLE, false, "js", {NULL}},
+    {0x0F89, OP_SIMPLE, false, "jns", {NULL}},
+    {0x0F8A, OP_SIMPLE, false, "jp", {NULL}},
+    {0x0F8B, OP_SIMPLE, false, "jnp", {NULL}},
+    {0x0F8C, OP_SIMPLE, false, "jl", {NULL}},
+    {0x0F8D, OP_SIMPLE, false, "jge", {NULL}},
+    {0x0F8E, OP_SIMPLE, false, "jle", {NULL}},
+    {0x0F8F, OP_SIMPLE, false, "jg", {NULL}},
 
     /* --- GROUPS --- */
     {0x0080, OP_GROUP, true, NULL, {(const char *)grp1}},
@@ -209,6 +232,9 @@ static opcode_desc opcode_table[] = {
 
     /* --- TWO BYTE (0F) --- */
     {0x0FAF, OP_SIMPLE, true, "imul", {NULL}},
+    {0x0F1E, OP_SIMPLE, true, "endbr", {NULL}},
+    {0x0F05, OP_SIMPLE, false, "syscall", {NULL}},
+    {0x0F34, OP_SIMPLE, false, "sysenter", {NULL}},
     {0x0FB6, OP_SIMPLE, true, "movzx", {NULL}},
     {0x0FB7, OP_SIMPLE, true, "movzx", {NULL}},
     {0x0FBE, OP_SIMPLE, true, "movsx", {NULL}},
@@ -347,7 +373,7 @@ const char *get_mnemonic(uint16_t opcode, uint8_t modrm_byte) {
 }
 
 static size_t format_operands(x86_instruction *ins, uint8_t *bytes, size_t size,
-                              uint8_t opcode, uint8_t modrm_byte,
+                              uint16_t opcode, uint8_t modrm_byte,
                               int has_modrm) {
   size_t i = 0;
   char op1[64] = {0};
@@ -360,6 +386,9 @@ static size_t format_operands(x86_instruction *ins, uint8_t *bytes, size_t size,
 
   if (has_modrm) {
     modrm_t m = parse_modrm(modrm_byte);
+    if (opcode == 0x0F1E) {
+      return 0;
+    }
 
     /* 8-bit */
     if (opcode == 0x00 || opcode == 0x02 || opcode == 0x88 || opcode == 0x8A) {
@@ -390,6 +419,15 @@ static size_t format_operands(x86_instruction *ins, uint8_t *bytes, size_t size,
       else if (opcode == 0x03 || opcode == 0x2B || opcode == 0x8B) {
         sprintf(op1, "%s", decode_64 ? reg64[m.reg] : reg32[m.reg]);
         i += format_rm32(op2, bytes + i, size - i, m);
+      } else if (opcode == 0x8D) {
+        sprintf(op1, "%s", decode_64 ? reg64[m.reg] : reg32[m.reg]);
+        i += format_rm32(op2, bytes + i, size - i, m);
+      } else if (opcode == 0xC6 || opcode == 0xC7) {
+        i += format_rm32(op1, bytes + i, size - i, m);
+        uint32_t imm;
+        int immediate_size = opcode == 0xC6 ? 1 : 4;
+        i += read_imm(bytes + i, size - i, &imm, immediate_size);
+        sprintf(op2, "0x%x", imm);
       }
       /* GROUP */
       else {
@@ -430,14 +468,22 @@ static size_t format_operands(x86_instruction *ins, uint8_t *bytes, size_t size,
               decode_64 ? reg64[register_index] : reg32_full[register_index]);
       sprintf(op2, "0x%x", imm);
     }
+    /* push immediate */
+    else if (opcode == 0x68 || opcode == 0x6A) {
+      uint32_t imm;
+      int immediate_size = opcode == 0x6A ? 1 : (is_16 ? 2 : 4);
+      i += read_imm(bytes + i, size - i, &imm, immediate_size);
+      sprintf(op1, "0x%x", imm);
+    }
     /* int imm32 */
     else if (opcode == 0xCD) {
       uint32_t imm;
       i += read_imm(bytes + i, size - i, &imm, 1);
       sprintf(op1, "0x%x", imm);
     }
-    /* call / jmp rel32 */
-    else if (opcode == 0xE8 || opcode == 0xE9) {
+    /* call / jmp / conditional branch rel32 */
+    else if (opcode == 0xE8 || opcode == 0xE9 ||
+             (opcode >= 0x0F80 && opcode <= 0x0F8F)) {
       int32_t rel;
       i += read_imm(bytes + i, size - i, (uint32_t *)&rel, 4);
       sprintf(op1, "0x%x", rel);

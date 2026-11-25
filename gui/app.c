@@ -13,6 +13,28 @@ static void set_status(t_app *app, const char *message) {
   gtk_label_set_text(GTK_LABEL(app->status), message);
 }
 
+static const char *string_at_address(t_app *app, guint64 address) {
+  if (!app->section_data)
+    return NULL;
+  for (guint i = 0; i < app->section_data->len; i++) {
+    t_section *section = g_ptr_array_index(app->section_data, i);
+    if (address < section->address ||
+        address >= section->address + section->size)
+      continue;
+    guint64 offset = section->offset + address - section->address;
+    if (offset >= app->binary_size)
+      return NULL;
+    const unsigned char *value = app->binary + offset;
+    gsize length = 0;
+    while (offset + length < app->binary_size && length < 160 &&
+           g_ascii_isprint(value[length]))
+      length++;
+    if (length >= 4)
+      return (const char *)value;
+  }
+  return NULL;
+}
+
 static void set_text(t_app *app, const char *contents) {
   GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(app->text));
   gtk_text_buffer_set_text(buffer, "", 0);
@@ -29,7 +51,16 @@ static void set_text(t_app *app, const char *contents) {
   }
   char **lines = g_strsplit(plain->str, "\n", -1);
   for (size_t i = 0; lines[i]; i++) {
-    if (g_str_has_prefix(lines[i], "SECTION|")) {
+    if (g_str_has_prefix(lines[i], "ELF_HEADER|")) {
+      char **fields = g_strsplit(lines[i], "|", 3);
+      if (fields[1] && fields[2]) {
+        char *header = g_strdup_printf("%-18s %s\n", fields[1], fields[2]);
+        gtk_text_buffer_insert_with_tags_by_name(buffer, &end, header, -1,
+                                                 "header", NULL);
+        g_free(header);
+      }
+      g_strfreev(fields);
+    } else if (g_str_has_prefix(lines[i], "SECTION|")) {
       char **fields = g_strsplit(lines[i], "|", 6);
       if (fields[1] && fields[2] && fields[3] && fields[4] && fields[5]) {
         char *heading = g_strdup_printf(
@@ -46,8 +77,6 @@ static void set_text(t_app *app, const char *contents) {
     } else if (g_str_has_prefix(lines[i], "ASM|")) {
       char **fields = g_strsplit(lines[i], "|", 5);
       if (fields[0] && fields[1] && fields[2] && fields[3] && fields[4]) {
-        gtk_text_buffer_insert_with_tags_by_name(buffer, &end, "0x", -1,
-                                                 "address", NULL);
         char *address = g_strdup_printf("0x%-16s", fields[1]);
         char *bytes = g_strdup_printf("%-32s", fields[2]);
         char *mnemonic = g_strdup_printf("%-10s", fields[3]);
@@ -65,7 +94,26 @@ static void set_text(t_app *app, const char *contents) {
         g_free(mnemonic);
         const char *operand = fields[4];
         while (*operand) {
-          if (g_ascii_isalpha(*operand) || *operand == '%') {
+          if (g_ascii_isxdigit(*operand) && (g_str_has_prefix(operand, "0x") ||
+                                             g_str_has_prefix(operand, "0X"))) {
+            const char *start = operand;
+            char *end_number = NULL;
+            guint64 value = g_ascii_strtoull(operand, &end_number, 0);
+            if (end_number == start)
+              end_number = (char *)start + 1;
+            char *number = g_strndup(start, end_number - start);
+            gtk_text_buffer_insert_with_tags_by_name(buffer, &end, number, -1,
+                                                     "constant", NULL);
+            const char *resolved = string_at_address(app, value);
+            if (resolved) {
+              char *annotation = g_strdup_printf("  ; \"%.80s\"", resolved);
+              gtk_text_buffer_insert_with_tags_by_name(buffer, &end, annotation,
+                                                       -1, "string_ref", NULL);
+              g_free(annotation);
+            }
+            g_free(number);
+            operand = end_number;
+          } else if (g_ascii_isalpha(*operand) || *operand == '%') {
             const char *start = operand++;
             while (g_ascii_isalnum(*operand))
               operand++;
@@ -194,15 +242,19 @@ static void install_theme(t_app *app) {
       GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
   g_object_unref(theme);
   GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(app->text));
-  const char *names[] = {"address", "bytes", "mnemonic", "reg32",
-                         "reg16",   "reg8",  "reg64"};
+  const char *names[] = {"address",    "bytes", "mnemonic", "reg32",
+                         "reg16",      "reg8",  "reg64",    "constant",
+                         "string_ref", "header"};
   const char *colors[] = {app->dark_theme ? "#a89984" : "#928374",
                           app->dark_theme ? "#928374" : "#a89984",
                           app->dark_theme ? "#83a598" : "#076678",
                           "#fb4934",
                           "#fabd2f",
                           "#d3869b",
-                          "#83a598"};
+                          "#83a598",
+                          "#b8bb26",
+                          "#8ec07c",
+                          "#b8bb26"};
   for (guint i = 0; i < G_N_ELEMENTS(names); i++) {
     GtkTextTag *tag = gtk_text_tag_table_lookup(
         gtk_text_buffer_get_tag_table(buffer), names[i]);
