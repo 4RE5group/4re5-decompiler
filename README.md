@@ -13,12 +13,14 @@ make
 Launch the graphical interface with:
 
 ```sh
-./4re5-decompiler-gui
+./4re5-decompiler
 ```
 
 You can also pass a binary path to open it on startup. The GUI lists ELF sections
 with addresses, sizes, file offsets, and flags. Selecting a section shows its
-raw bytes and disassembly. The Strings tab lists printable strings. Edit menu
+raw bytes and disassembly. The Strings, Symbols, and Functions tabs expose
+printable strings, ELF symbol records, and executable-section function
+candidates. Edit menu
 actions search strings and wildcard byte patterns across the file and navigate
 to ELF virtual addresses. The disassembly view shows instruction addresses and
 colors register widths separately. Both ELF32 and ELF64 x86 binaries are parsed
