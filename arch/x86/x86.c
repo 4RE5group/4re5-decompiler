@@ -408,6 +408,17 @@ static size_t format_operands(x86_instruction *ins, uint8_t *bytes, size_t size,
       } else if (opcode == 0x03 || opcode == 0x2B || opcode == 0x8B) {
         sprintf(op1, "%s", reg16[m.reg]);
         i += format_rm16(op2, bytes + i, size - i, m);
+      } else {
+        i += format_rm16(op1, bytes + i, size - i, m);
+        if (opcode == 0x80 || opcode == 0x83) {
+          uint32_t imm;
+          i += read_imm(bytes + i, size - i, &imm, 1);
+          sprintf(op2, "0x%x", imm);
+        } else if (opcode == 0x81) {
+          uint32_t imm;
+          i += read_imm(bytes + i, size - i, &imm, 2);
+          sprintf(op2, "0x%x", imm);
+        }
       }
     } else {
       /* r/m32, r32 */
